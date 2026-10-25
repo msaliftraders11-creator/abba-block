@@ -70,13 +70,13 @@
         .grid-cell {
             background-color: #26353d;
             border-radius: 3px;
-            transition: background-color 0.1s ease;
+            transition: background-color 0.05s ease;
             position: relative;
         }
 
         .grid-cell.highlight {
-            background-color: rgba(255, 255, 255, 0.45) !important;
-            box-shadow: inset 0 0 6px rgba(255,255,255,0.9);
+            background-color: rgba(255, 255, 255, 0.5) !important;
+            box-shadow: inset 0 0 8px rgba(255,255,255,0.95);
         }
 
         .grid-cell.invalid-highlight {
@@ -197,14 +197,12 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Dragging Ghost Overlay */
+        /* Dragging Ghost Overlay - Shadow removed for clean visibility */
         #drag-ghost {
             position: fixed;
             pointer-events: none;
             z-index: 1000;
-            transform: translate(-50%, -50%);
             display: none;
-            filter: drop-shadow(0 12px 20px rgba(0,0,0,0.45));
         }
 
         .text-gold {
@@ -437,7 +435,6 @@
     <script>
         /* ==================== INLINE PWA MANIFEST & SERVICE WORKER SETUP ==================== */
         (function setupPWA() {
-            // Create dynamic Manifest URL
             const manifest = {
                 name: "Block Puzzle Infinite",
                 short_name: "BlockPuzzle",
@@ -461,7 +458,6 @@
             manifestLink.href = manifestURL;
             document.head.appendChild(manifestLink);
 
-            // Register dummy Service Worker via Blob to satisfy Chrome PWA criteria
             if ('serviceWorker' in navigator) {
                 const swCode = `
                     self.addEventListener('install', (e) => self.skipWaiting());
@@ -607,13 +603,11 @@
         let coins = 51;
         let soundEnabled = true;
 
-        // Rotation Mode State: allows unlimited rotation on tray pieces after ad until placed
         let rotateUnlocked = false;
 
-        // Dragging state variables
         let draggedSlotIndex = null;
         let activeBlockData = null;
-        let FINGER_Y_OFFSET = 75; // Offset visual block above finger so target is clearly visible
+        let FINGER_Y_OFFSET = 75; // Offset visual block above finger so target grid is 100% visible
 
         /* ==================== DOM ELEMENTS ==================== */
         const boardEl = document.getElementById('board');
@@ -841,7 +835,6 @@
                 }
             });
 
-            // Ad Powerups
             document.getElementById('btn-powerup-refresh').addEventListener('click', () => {
                 showAdModal("Refresh Tray Blocks", () => {
                     spawnTrayBlocks();
@@ -873,7 +866,6 @@
                 });
             });
 
-            // Handle Pointer Down on Tray Slots (Supports tap to rotate when unlocked & drag to place)
             trayContainer.addEventListener('pointerdown', handlePointerDown);
             window.addEventListener('pointermove', handlePointerMove);
             window.addEventListener('pointerup', handlePointerUp);
@@ -883,7 +875,6 @@
         function rotateSingleBlock(slotIndex) {
             if (!trayBlocks[slotIndex]) return;
             const matrix = trayBlocks[slotIndex].matrix;
-            // 90 deg rotation logic
             const rotatedMatrix = matrix[0].map((_, colIndex) => matrix.map(row => row[colIndex]).reverse());
             trayBlocks[slotIndex].matrix = rotatedMatrix;
             sound.playRotate();
@@ -913,9 +904,7 @@
             pointerStartPos = { x: e.clientX, y: e.clientY };
             isPointerDragging = false;
 
-            // Prepare Drag Ghost
             dragGhost.innerHTML = '';
-            // Render block at 100% board scale so visual placement is exact
             const boardRect = boardEl.getBoundingClientRect();
             const cellSize = (boardRect.width - 8) / BOARD_SIZE;
 
@@ -938,18 +927,22 @@
             }
 
             if (isPointerDragging) {
-                // Apply Finger Y Offset so finger doesn't obscure placement area!
                 const targetX = e.clientX;
                 const targetY = e.clientY - FINGER_Y_OFFSET;
 
-                updateGhostPosition(targetX, targetY);
+                const boardRect = boardEl.getBoundingClientRect();
+                const cellSize = (boardRect.width - 8) / BOARD_SIZE;
+                const matrix = activeBlockData.matrix;
+                
+                // Keep dragged piece centered under finger offset
+                const ghostWidth = matrix[0].length * cellSize;
+                const ghostHeight = matrix.length * cellSize;
+                
+                dragGhost.style.left = `${targetX - ghostWidth / 2}px`;
+                dragGhost.style.top = `${targetY - ghostHeight / 2}px`;
+
                 highlightGridSnap(targetX, targetY);
             }
-        }
-
-        function updateGhostPosition(x, y) {
-            dragGhost.style.left = `${x}px`;
-            dragGhost.style.top = `${y}px`;
         }
 
         function highlightGridSnap(x, y) {
@@ -966,12 +959,10 @@
             if (draggedSlotIndex === null || !activeBlockData) return;
 
             if (!isPointerDragging) {
-                // Click/Tap without drag -> If rotate unlocked, rotate this single piece!
                 if (rotateUnlocked) {
                     rotateSingleBlock(draggedSlotIndex);
                 }
             } else {
-                // Pointer Drag release -> Place block onto board if valid
                 const targetX = e.clientX;
                 const targetY = e.clientY - FINGER_Y_OFFSET;
                 const gridPos = getGridCoordinatesFromPixel(targetX, targetY);
@@ -984,7 +975,6 @@
                     placedSuccessfully = true;
                     sound.playPlace();
 
-                    // Lock rotation back after piece is placed (requires ad again for next unlock)
                     if (rotateUnlocked) {
                         rotateUnlocked = false;
                         updateRotateUIState();
@@ -1019,30 +1009,27 @@
             isPointerDragging = false;
         }
 
-        // Get cell coordinates based on block center placement offset
+        // Pinpoint precision coordinate calculation based on block top-left cell
         function getGridCoordinatesFromPixel(x, y) {
             const rect = boardEl.getBoundingClientRect();
-
-            // Check bounding box
-            if (x < rect.left - 20 || x > rect.right + 20 || y < rect.top - 20 || y > rect.bottom + 20) {
+            if (x < rect.left - 30 || x > rect.right + 30 || y < rect.top - 30 || y > rect.bottom + 30) {
                 return null;
             }
 
             const cellWidth = (rect.width - 8) / BOARD_SIZE;
             const cellHeight = (rect.height - 8) / BOARD_SIZE;
 
-            // Offset to align top-left/center of shape cleanly
-            const blockMatrix = activeBlockData.matrix;
-            const blockWidthPx = blockMatrix[0].length * cellWidth;
-            const blockHeightPx = blockMatrix.length * cellHeight;
+            const matrix = activeBlockData.matrix;
+            const blockWidthPx = matrix[0].length * cellWidth;
+            const blockHeightPx = matrix.length * cellHeight;
 
-            const adjustedX = x - (blockWidthPx / 2) + (cellWidth / 2);
-            const adjustedY = y - (blockHeightPx / 2) + (cellHeight / 2);
+            const topLeftX = x - (blockWidthPx / 2);
+            const topLeftY = y - (blockHeightPx / 2);
 
-            const col = Math.round((adjustedX - rect.left - 4) / cellWidth);
-            const row = Math.round((adjustedY - rect.top - 4) / cellHeight);
+            const col = Math.round((topLeftX - rect.left - 4) / cellWidth);
+            const row = Math.round((topLeftY - rect.top - 4) / cellHeight);
 
-            if (row >= 0 && row < BOARD_SIZE && col >= 0 && col < BOARD_SIZE) {
+            if (row >= 0 && row <= BOARD_SIZE - matrix.length && col >= 0 && col <= BOARD_SIZE - matrix[0].length) {
                 return { row, col };
             }
             return null;
