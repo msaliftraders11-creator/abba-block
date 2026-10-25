@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Block Puzzle Infinite</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Font 'Poppins' -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(180deg, #8bc6ec 0%, #95d0f5 40%, #c4e0e5 100%);
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+        }
+
+        /* Floating background hexagon graphics */
+        .bg-hexagon {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.18);
+            clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+            animation: floatHex 12s infinite ease-in-out;
+            pointer-events: none;
+        }
+
+        @keyframes floatHex {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(10deg); }
+        }
+
+        /* Grid Board Styling */
+        .game-board-container {
+            background: linear-gradient(145deg, #2a3d45, #1f2d33);
+            border: 4px solid #e2b144;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3), inset 0 0 15px rgba(0,0,0,0.5), 0 0 0 2px #91681f;
+            border-radius: 12px;
+        }
+
+        .board-grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            grid-template-rows: repeat(10, 1fr);
+            gap: 2px;
+            background-color: #384d56;
+            padding: 4px;
+            border-radius: 8px;
+        }
+
+        .grid-cell {
+            background-color: #26353d;
+            border-radius: 3px;
+            transition: background-color 0.15s ease;
+            position: relative;
+        }
+
+        .grid-cell.highlight {
+            background-color: rgba(255, 255, 255, 0.35) !important;
+            box-shadow: inset 0 0 5px rgba(255,255,255,0.8);
+        }
+
+        .grid-cell.invalid-highlight {
+            background-color: rgba(255, 80, 80, 0.4) !important;
+        }
+
+        /* Glossy 3D Block Tile Styles */
+        .block-tile {
+            border-radius: 4px;
+            box-shadow: inset 2px 2px 3px rgba(255,255,255,0.6), inset -2px -2px 3px rgba(0,0,0,0.4), 0 2px 4px rgba(0,0,0,0.25);
+            position: relative;
+        }
+
+        .block-tile::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            right: 2px;
+            height: 35%;
+            background: rgba(255, 255, 255, 0.25);
+            border-radius: 2px 2px 0 0;
+            pointer-events: none;
+        }
+
+        /* Block Color Variants matching Screenshot */
+        .color-green  { background: linear-gradient(135deg, #81c784, #4caf50); border: 1px solid #388e3c; }
+        .color-purple { background: linear-gradient(135deg, #ba68c8, #9c27b0); border: 1px solid #7b1fa2; }
+        .color-blue   { background: linear-gradient(135deg, #64b5f6, #2196f3); border: 1px solid #1976d2; }
+        .color-yellow { background: linear-gradient(135deg, #ffd54f, #ffb300); border: 1px solid #ffa000; }
+        .color-orange { background: linear-gradient(135deg, #ff8a65, #ff5722); border: 1px solid #e64a19; }
+
+        /* Glossy Buttons */
+        .btn-glossy {
+            background: linear-gradient(180deg, #ffdb58 0%, #f39c12 100%);
+            border: 2px solid #fff;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2), inset 0 2px 2px rgba(255,255,255,0.8);
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+            transition: transform 0.1s, filter 0.1s;
+        }
+
+        .btn-glossy:active {
+            transform: scale(0.95);
+            filter: brightness(0.9);
+        }
+
+        .btn-blue {
+            background: linear-gradient(180deg, #3498db 0%, #1d6fa5 100%);
+            border: 2px solid #a3d5ff;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2), inset 0 2px 2px rgba(255,255,255,0.6);
+        }
+
+        .btn-icon-round {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(180deg, #3498db 0%, #1a5276 100%);
+            border: 2px solid #fff;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3), inset 0 2px 3px rgba(255,255,255,0.6);
+            color: white;
+        }
+
+        /* Powerup AD Button Badge */
+        .ad-badge {
+            position: absolute;
+            bottom: -4px;
+            right: -6px;
+            background: #ffffff;
+            color: #d32f2f;
+            font-size: 9px;
+            font-weight: 900;
+            padding: 1px 4px;
+            border-radius: 4px;
+            border: 1px solid #d32f2f;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        /* Dragging Ghost Overlay */
+        #drag-ghost {
+            position: fixed;
+            pointer-events: none;
+            z-index: 1000;
+            transform: translate(-50%, -50%) scale(1.05);
+            display: none;
+            filter: drop-shadow(0 10px 15px rgba(0,0,0,0.4));
+        }
+
+        /* Score & Text Styles */
+        .text-gold {
+            background: linear-gradient(180deg, #fff176 0%, #fbc02d 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+        }
+
+        /* Particles animation canvas */
+        #particle-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 50;
+        }
+
+        /* Score Popup Animation */
+        @keyframes floatScore {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-50px) scale(1.3); }
+        }
+
+        .score-popup {
+            position: absolute;
+            font-weight: 900;
+            color: #fff176;
+            text-shadow: 0 0 8px rgba(0,0,0,0.8), 0 0 12px #fbc02d;
+            animation: floatScore 1s forwards ease-out;
+            pointer-events: none;
+            z-index: 60;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-between relative select-none">
+
+    <!-- Particle Canvas for clears and FX -->
+    <canvas id="particle-canvas"></canvas>
+
+    <!-- Background Hexagon Decors -->
+    <div class="bg-hexagon w-32 h-32 top-8 -left-10 opacity-60"></div>
+    <div class="bg-hexagon w-48 h-48 top-1/3 -right-16 opacity-40" style="animation-delay: -4s;"></div>
+    <div class="bg-hexagon w-28 h-28 bottom-20 left-6 opacity-50" style="animation-delay: -7s;"></div>
+
+    <!-- ==================== MAIN CONTAINER ==================== -->
+    <div class="w-full max-w-md h-full flex flex-col justify-between p-4 relative z-10">
+
+        <!-- HEADER / TOP HUD -->
+        <div id="game-hud" class="w-full flex items-center justify-between mt-2 mb-2 hidden">
+            <!-- Pause / Settings Button -->
+            <button id="btn-pause" class="btn-icon-round active:scale-95 transition-transform">
+                <i class="fa-solid fa-pause text-xl"></i>
+            </button>
+
+            <!-- Score & Best Score Display -->
+            <div class="flex flex-col items-center">
+                <div id="current-score" class="text-4xl font-black text-gold tracking-wide">0</div>
+                <div class="text-xs font-bold text-white opacity-90 drop-shadow-md">
+                    Best Score : <span id="best-score">0</span>
+                </div>
+            </div>
+
+            <!-- Coin Counter -->
+            <div class="glass-panel px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-md">
+                <div class="w-6 h-6 rounded-full bg-yellow-400 border-2 border-white flex items-center justify-center text-xs text-yellow-900 font-bold shadow">
+                    <i class="fa-solid fa-star"></i>
+                </div>
+                <span id="coin-count" class="font-extrabold text-white text-base drop-shadow">50</span>
+            </div>
+        </div>
+
+        <!-- BOARD AREA -->
+        <div id="board-screen" class="w-full flex-1 flex flex-col items-center justify-center my-auto hidden">
+            <div class="game-board-container p-1.5 w-full max-w-[360px] aspect-square shadow-2xl">
+                <div id="board" class="board-grid w-full h-full">
+                    <!-- 100 cells generated programmatically -->
+                </div>
+            </div>
+        </div>
+
+        <!-- BOTTOM TRAY / TRAY SLOTS -->
+        <div id="tray-container" class="w-full max-w-[360px] mx-auto h-28 flex items-center justify-around my-2 hidden">
+            <div class="tray-slot w-24 h-24 flex items-center justify-center" data-slot="0"></div>
+            <div class="tray-slot w-24 h-24 flex items-center justify-center" data-slot="1"></div>
+            <div class="tray-slot w-24 h-24 flex items-center justify-center" data-slot="2"></div>
+        </div>
+
+        <!-- POWER-UP / AD CONTROLS (FOOTER) -->
+        <div id="powerups-bar" class="w-full max-w-[360px] mx-auto flex justify-between items-center px-6 py-2 hidden">
+            <!-- Refresh Tray Powerup -->
+            <button id="btn-powerup-refresh" class="relative btn-icon-round bg-gradient-to-b from-pink-400 to-pink-600 border-pink-200 active:scale-95">
+                <i class="fa-solid fa-right-left text-lg"></i>
+                <span class="ad-badge">AD</span>
+            </button>
+
+            <!-- Rotate Blocks Powerup -->
+            <button id="btn-powerup-rotate" class="relative btn-icon-round bg-gradient-to-b from-cyan-400 to-blue-600 border-cyan-200 active:scale-95">
+                <i class="fa-solid fa-rotate-right text-lg"></i>
+                <span class="ad-badge">AD</span>
+            </button>
+        </div>
+
+    </div>
+
+    <!-- ==================== MAIN HOMEPAGE / START SCREEN ==================== -->
+    <div id="home-screen" class="fixed inset-0 z-50 flex flex-col items-center justify-between p-8">
+        <!-- Logo / Title -->
+        <div class="flex flex-col items-center mt-12">
+            <div class="flex gap-1 mb-2">
+                <div class="w-8 h-8 block-tile color-green"></div>
+                <div class="w-8 h-8 block-tile color-purple"></div>
+                <div class="w-8 h-8 block-tile color-yellow"></div>
+                <div class="w-8 h-8 block-tile color-orange"></div>
+            </div>
+            <h1 class="text-4xl font-black text-white text-center drop-shadow-lg tracking-wider uppercase">
+                BLOCK<br><span class="text-gold text-5xl">PUZZLE</span>
+            </h1>
+        </div>
+
+        <!-- 2 Primary Homepage Options ONLY -->
+        <div class="w-full max-w-xs flex flex-col gap-5 mb-16">
+            <button id="btn-play-game" class="btn-glossy py-4 rounded-2xl text-2xl font-black text-white tracking-wide flex items-center justify-center gap-3">
+                <i class="fa-solid fa-play text-2xl"></i> PLAY GAME
+            </button>
+            <button id="btn-home-settings" class="btn-blue py-3.5 rounded-2xl text-xl font-extrabold text-white tracking-wide flex items-center justify-center gap-3">
+                <i class="fa-solid fa-gear text-xl"></i> SETTINGS
+            </button>
+        </div>
+
+        <div class="text-xs text-white/70 font-semibold">Infinite Level Mode</div>
+    </div>
+
+    <!-- ==================== SETTINGS MODAL ==================== -->
+    <div id="settings-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-panel bg-slate-900/90 w-full max-w-xs rounded-3xl p-6 border-2 border-white/20 flex flex-col items-center gap-5 text-white shadow-2xl">
+            <h2 class="text-2xl font-black tracking-wide text-gold">SETTINGS</h2>
+            
+            <div class="w-full flex items-center justify-between py-2 border-b border-white/10">
+                <span class="font-bold flex items-center gap-2"><i class="fa-solid fa-volume-high text-yellow-400"></i> Sound Effects</span>
+                <input type="checkbox" id="toggle-sound" class="w-6 h-6 accent-yellow-400 cursor-pointer" checked>
+            </div>
+
+            <div class="w-full flex items-center justify-between py-2 border-b border-white/10">
+                <span class="font-bold flex items-center gap-2"><i class="fa-solid fa-music text-yellow-400"></i> Game Music</span>
+                <input type="checkbox" id="toggle-music" class="w-6 h-6 accent-yellow-400 cursor-pointer" checked>
+            </div>
+
+            <button id="btn-reset-data" class="w-full py-2.5 bg-red-500/80 hover:bg-red-600 rounded-xl font-bold text-sm text-white transition">
+                Reset All Progress
+            </button>
+
+            <button id="btn-close-settings" class="btn-glossy w-full py-3 rounded-xl font-extrabold text-white text-lg mt-2">
+                CLOSE
+            </button>
+        </div>
+    </div>
+
+    <!-- ==================== AD SIMULATOR MODAL ==================== -->
+    <div id="ad-modal" class="fixed inset-0 bg-black/85 z-50 flex flex-col items-center justify-center p-6 text-white hidden">
+        <div class="glass-panel p-6 rounded-2xl flex flex-col items-center text-center max-w-xs w-full border border-white/20">
+            <span class="text-xs bg-yellow-400 text-black px-2 py-0.5 rounded font-black uppercase mb-3">Sponsor Ad</span>
+            <i class="fa-solid fa-film text-5xl text-cyan-400 my-4 animate-bounce"></i>
+            <h3 class="text-lg font-bold mb-1" id="ad-title">Rewarding Powerup</h3>
+            <p class="text-xs text-slate-300 mb-4">Ad finishes in <span id="ad-timer" class="font-extrabold text-yellow-400 text-sm">3</span>s...</p>
+            <div class="w-full bg-slate-700 h-2 rounded-full overflow-hidden mb-4">
+                <div id="ad-progress" class="bg-yellow-400 h-full w-0 transition-all duration-1000 linear"></div>
+            </div>
+            <button id="btn-skip-ad" class="text-xs text-slate-400 underline opacity-50 cursor-not-allowed" disabled>Skip Ad</button>
+        </div>
+    </div>
+
+    <!-- ==================== GAME OVER MODAL ==================== -->
+    <div id="gameover-modal" class="fixed inset-0 bg-black/75 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-panel bg-slate-900/90 w-full max-w-xs rounded-3xl p-6 border-2 border-yellow-400/40 flex flex-col items-center text-white text-center shadow-2xl">
+            <div class="w-16 h-16 rounded-full bg-red-500/20 border-2 border-red-500 flex items-center justify-center mb-2">
+                <i class="fa-solid fa-grid-2-plus text-3xl text-red-400"></i>
+            </div>
+            <h2 class="text-3xl font-black text-red-400 tracking-wide mb-1">NO MORE MOVES</h2>
+            <p class="text-xs text-slate-300 mb-4">Screen cannot fit any remaining blocks!</p>
+
+            <div class="w-full bg-slate-800/80 rounded-xl p-3 mb-4 flex justify-around border border-white/10">
+                <div>
+                    <div class="text-xs text-slate-400 font-bold">SCORE</div>
+                    <div id="go-score" class="text-2xl font-black text-gold">0</div>
+                </div>
+                <div class="border-r border-white/10"></div>
+                <div>
+                    <div class="text-xs text-slate-400 font-bold">BEST</div>
+                    <div id="go-best" class="text-2xl font-black text-white">0</div>
+                </div>
+            </div>
+
+            <!-- Ad Continue Option -->
+            <button id="btn-ad-continue" class="btn-glossy w-full py-3 rounded-xl font-extrabold text-white text-base mb-3 flex items-center justify-center gap-2">
+                <i class="fa-solid fa-video"></i> Clear Board & Continue <span class="ad-badge relative bottom-0 right-0">AD</span>
+            </button>
+
+            <!-- Restart Fresh -->
+            <button id="btn-restart-game" class="btn-blue w-full py-3 rounded-xl font-extrabold text-white text-base">
+                START AGAIN
+            </button>
+        </div>
+    </div>
+
+    <!-- DRAGGING GHOST CONTAINER -->
+    <div id="drag-ghost"></div>
+
+    <!-- ==================== JAVASCRIPT GAME LOGIC ==================== -->
+    <script>
+        /* ==================== SOUND SYNTHESIZER (Web Audio API) ==================== */
+        class SoundFX {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            }
+
+            playPlace() {
+                if (!this.enabled) return;
+                this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(300, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(150, this.ctx.currentTime + 0.08);
+                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.08);
+            }
+
+            playClear() {
+                if (!this.enabled) return;
+                this.init();
+                const notes = [400, 550, 700, 880];
+                notes.forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime + idx * 0.05);
+                    gain.gain.setValueAtTime(0.25, this.ctx.currentTime + idx * 0.05);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + idx * 0.05 + 0.15);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(this.ctx.currentTime + idx * 0.05);
+                    osc.stop(this.ctx.currentTime + idx * 0.05 + 0.15);
+                });
+            }
+
+            playGameOver() {
+                if (!this.enabled) return;
+                this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(250, this.ctx.currentTime);
+                osc.frequency.linearRampToValueAtTime(100, this.ctx.currentTime + 0.4);
+                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.4);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.4);
+            }
+        }
+
+        const sound = new SoundFX();
+
+        /* ==================== BLOCK SHAPES DEFINITIONS ==================== */
+        const BLOCK_DEFINITIONS = [
+            // Single
+            { matrix: [[1]], color: 'color-yellow' },
+            // 2x1 & 1x2
+            { matrix: [[1, 1]], color: 'color-green' },
+            { matrix: [[1], [1]], color: 'color-green' },
+            // 3x1 & 1x3
+            { matrix: [[1, 1, 1]], color: 'color-blue' },
+            { matrix: [[1], [1], [1]], color: 'color-blue' },
+            // 4x1 & 1x4
+            { matrix: [[1, 1, 1, 1]], color: 'color-green' },
+            { matrix: [[1], [1], [1], [1]], color: 'color-green' },
+            // 2x2 Square
+            { matrix: [[1, 1], [1, 1]], color: 'color-yellow' },
+            // 3x3 Square
+            { matrix: [[1, 1, 1], [1, 1, 1], [1, 1, 1]], color: 'color-orange' },
+            // L Shapes
+            { matrix: [[1, 0], [1, 0], [1, 1]], color: 'color-purple' },
+            { matrix: [[0, 1], [0, 1], [1, 1]], color: 'color-orange' },
+            { matrix: [[1, 1, 1], [1, 0, 0]], color: 'color-orange' },
+            { matrix: [[1, 1, 1], [0, 0, 1]], color: 'color-purple' },
+            // Small L
+            { matrix: [[1, 0], [1, 1]], color: 'color-blue' },
+            { matrix: [[0, 1], [1, 1]], color: 'color-yellow' },
+            // T Shapes
+            { matrix: [[1, 1, 1], [0, 1, 0]], color: 'color-purple' },
+            { matrix: [[0, 1, 0], [1, 1, 1]], color: 'color-blue' }
+        ];
+
+        /* ==================== GAME STATE & VARS ==================== */
+        const BOARD_SIZE = 10;
+        let boardState = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
+        let trayBlocks = [null, null, null];
+        let score = 0;
+        let bestScore = 0;
+        let coins = 51;
+        let soundEnabled = true;
+
+        // Dragging state variables
+        let draggedSlotIndex = null;
+        let activeBlockData = null;
+        let dragTouchOffset = { x: 0, y: 0 };
+
+        /* ==================== DOM ELEMENTS ==================== */
+        const boardEl = document.getElementById('board');
+        const homeScreen = document.getElementById('home-screen');
+        const gameHud = document.getElementById('game-hud');
+        const boardScreen = document.getElementById('board-screen');
+        const trayContainer = document.getElementById('tray-container');
+        const powerupsBar = document.getElementById('powerups-bar');
+        const dragGhost = document.getElementById('drag-ghost');
+
+        const currentScoreEl = document.getElementById('current-score');
+        const bestScoreEl = document.getElementById('best-score');
+        const coinCountEl = document.getElementById('coin-count');
+
+        const settingsModal = document.getElementById('settings-modal');
+        const gameoverModal = document.getElementById('gameover-modal');
+        const adModal = document.getElementById('ad-modal');
+
+        /* ==================== INITIALIZATION & PERSISTENCE ==================== */
+        function initApp() {
+            createBoardGrid();
+            loadProgress();
+            setupEventListeners();
+            initParticleCanvas();
+        }
+
+        // Create 10x10 Board Grid Cells
+        function createBoardGrid() {
+            boardEl.innerHTML = '';
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'grid-cell';
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+                    boardEl.appendChild(cell);
+                }
+            }
+        }
+
+        // Save progress to localStorage (Infinite Level Persistence)
+        function saveProgress() {
+            const data = {
+                boardState,
+                trayBlocks,
+                score,
+                bestScore,
+                coins,
+                soundEnabled
+            };
+            localStorage.setItem('block_puzzle_save_v1', JSON.stringify(data));
+        }
+
+        // Load saved game position
+        function loadProgress() {
+            const saved = localStorage.getItem('block_puzzle_save_v1');
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    boardState = data.boardState || boardState;
+                    trayBlocks = data.trayBlocks || [null, null, null];
+                    score = data.score || 0;
+                    bestScore = data.bestScore || 0;
+                    coins = data.coins || 51;
+                    soundEnabled = data.soundEnabled !== undefined ? data.soundEnabled : true;
+                    
+                    document.getElementById('toggle-sound').checked = soundEnabled;
+                    sound.enabled = soundEnabled;
+                } catch(e) {
+                    console.error("Error loading save data", e);
+                }
+            }
+            updateHUD();
+        }
+
+        function updateHUD() {
+            currentScoreEl.textContent = score;
+            bestScoreEl.textContent = bestScore;
+            coinCountEl.textContent = coins;
+        }
+
+        /* ==================== GAME NAVIGATION & FLOW ==================== */
+        function startGame() {
+            homeScreen.classList.add('hidden');
+            gameHud.classList.remove('hidden');
+            boardScreen.classList.remove('hidden');
+            trayContainer.classList.remove('hidden');
+            powerupsBar.classList.remove('hidden');
+
+            renderBoard();
+
+            // If tray is empty (new game), spawn new set
+            if (trayBlocks.every(b => b === null)) {
+                spawnTrayBlocks();
+            } else {
+                renderTray();
+            }
+
+            checkGameOverCondition();
+        }
+
+        function renderBoard() {
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    const cell = boardEl.children[r * BOARD_SIZE + c];
+                    const colorClass = boardState[r][c];
+                    cell.className = 'grid-cell';
+                    if (colorClass) {
+                        cell.classList.add('block-tile', colorClass);
+                    }
+                }
+            }
+        }
+
+        /* ==================== TRAY & BLOCK SPAWNING ==================== */
+        function spawnTrayBlocks() {
+            for (let i = 0; i < 3; i++) {
+                const randomDef = BLOCK_DEFINITIONS[Math.floor(Math.random() * BLOCK_DEFINITIONS.length)];
+                // Deep clone definition
+                trayBlocks[i] = JSON.parse(JSON.stringify(randomDef));
+            }
+            renderTray();
+            saveProgress();
+        }
+
+        function renderTray() {
+            const slots = trayContainer.querySelectorAll('.tray-slot');
+            slots.forEach((slot, index) => {
+                slot.innerHTML = '';
+                const blockData = trayBlocks[index];
+                if (blockData) {
+                    const blockElement = createBlockElement(blockData.matrix, blockData.color, 20);
+                    blockElement.dataset.slotIndex = index;
+                    slot.appendChild(blockElement);
+                }
+            });
+        }
+
+        // Helper to construct DOM element representation of a block
+        function createBlockElement(matrix, colorClass, tileSize = 24) {
+            const container = document.createElement('div');
+            container.className = 'inline-block cursor-grab touch-none';
+            container.style.display = 'grid';
+            container.style.gridTemplateColumns = `repeat(${matrix[0].length}, ${tileSize}px)`;
+            container.style.gridTemplateRows = `repeat(${matrix.length}, ${tileSize}px)`;
+            container.style.gap = '2px';
+
+            for (let r = 0; r < matrix.length; r++) {
+                for (let c = 0; c < matrix[0].length; c++) {
+                    const cellDiv = document.createElement('div');
+                    if (matrix[r][c] === 1) {
+                        cellDiv.className = `block-tile ${colorClass} w-full h-full rounded`;
+                    } else {
+                        cellDiv.className = 'w-full h-full opacity-0';
+                    }
+                    container.appendChild(cellDiv);
+                }
+            }
+            return container;
+        }
+
+        /* ==================== DRAG AND DROP MECHANICS ==================== */
+        function setupEventListeners() {
+            // Homepage Button
+            document.getElementById('btn-play-game').addEventListener('click', () => {
+                sound.init();
+                startGame();
+            });
+
+            document.getElementById('btn-home-settings').addEventListener('click', () => {
+                settingsModal.classList.remove('hidden');
+            });
+
+            document.getElementById('btn-pause').addEventListener('click', () => {
+                settingsModal.classList.remove('hidden');
+            });
+
+            document.getElementById('btn-close-settings').addEventListener('click', () => {
+                settingsModal.classList.add('hidden');
+            });
+
+            // Settings Switches
+            document.getElementById('toggle-sound').addEventListener('change', (e) => {
+                soundEnabled = e.target.checked;
+                sound.enabled = soundEnabled;
+                saveProgress();
+            });
+
+            document.getElementById('btn-reset-data').addEventListener('click', () => {
+                if (confirm('Are you sure you want to reset all game data and best scores?')) {
+                    localStorage.removeItem('block_puzzle_save_v1');
+                    score = 0;
+                    bestScore = 0;
+                    coins = 50;
+                    boardState = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
+                    trayBlocks = [null, null, null];
+                    updateHUD();
+                    renderBoard();
+                    spawnTrayBlocks();
+                    settingsModal.classList.add('hidden');
+                }
+            });
+
+            // Ad / Powerup Buttons
+            document.getElementById('btn-powerup-refresh').addEventListener('click', () => {
+                showAdModal("Refresh Tray Blocks", () => {
+                    spawnTrayBlocks();
+                });
+            });
+
+            document.getElementById('btn-powerup-rotate').addEventListener('click', () => {
+                showAdModal("Rotate Active Blocks", () => {
+                    rotateTrayBlocks();
+                });
+            });
+
+            // Game Over Handlers
+            document.getElementById('btn-restart-game').addEventListener('click', () => {
+                resetGame();
+                gameoverModal.classList.add('hidden');
+            });
+
+            document.getElementById('btn-ad-continue').addEventListener('click', () => {
+                showAdModal("Clear Board & Continue", () => {
+                    clearInnerBoard();
+                    gameoverModal.classList.add('hidden');
+                });
+            });
+
+            // Pointer & Touch Events for Dragging
+            trayContainer.addEventListener('pointerdown', handleDragStart);
+            window.addEventListener('pointermove', handleDragMove);
+            window.addEventListener('pointerup', handleDragEnd);
+            window.addEventListener('pointercancel', handleDragEnd);
+        }
+
+        function rotateTrayBlocks() {
+            trayBlocks = trayBlocks.map(block => {
+                if (!block) return null;
+                const matrix = block.matrix;
+                // Rotate matrix 90 degrees clock-wise
+                const rotatedMatrix = matrix[0].map((_, colIndex) => matrix.map(row => row[colIndex]).reverse());
+                return { matrix: rotatedMatrix, color: block.color };
+            });
+            renderTray();
+            saveProgress();
+            checkGameOverCondition();
+        }
+
+        function clearInnerBoard() {
+            // Clear center of board to give user fresh room
+            for (let r = 2; r < 8; r++) {
+                for (let c = 2; c < 8; c++) {
+                    boardState[r][c] = null;
+                }
+            }
+            renderBoard();
+            saveProgress();
+        }
+
+        /* Drag Engine Implementation */
+        function handleDragStart(e) {
+            const target = e.target.closest('[data-slot-index]');
+            if (!target) return;
+
+            draggedSlotIndex = parseInt(target.dataset.slotIndex);
+            activeBlockData = trayBlocks[draggedSlotIndex];
+            if (!activeBlockData) return;
+
+            // Setup Ghost Element
+            dragGhost.innerHTML = '';
+            const ghostBlock = createBlockElement(activeBlockData.matrix, activeBlockData.color, 32);
+            dragGhost.appendChild(ghostBlock);
+            dragGhost.style.display = 'block';
+
+            updateGhostPosition(e.clientX, e.clientY - 60); // Offset slightly above finger for visibility
+
+            // Hide original block in tray while dragging
+            target.style.opacity = '0.2';
+        }
+
+        function handleDragMove(e) {
+            if (draggedSlotIndex === null || !activeBlockData) return;
+            e.preventDefault();
+
+            const fingerX = e.clientX;
+            const fingerY = e.clientY - 60; // Elevated target position
+
+            updateGhostPosition(fingerX, fingerY);
+            highlightGridSnap(fingerX, fingerY);
+        }
+
+        function updateGhostPosition(x, y) {
+            dragGhost.style.left = `${x}px`;
+            dragGhost.style.top = `${y}px`;
+        }
+
+        function highlightGridSnap(x, y) {
+            clearHighlights();
+            const gridPos = getGridCoordinatesFromPixel(x, y);
+
+            if (gridPos) {
+                const canPlace = canPlaceBlock(activeBlockData.matrix, gridPos.row, gridPos.col);
+                highlightCells(activeBlockData.matrix, gridPos.row, gridPos.col, canPlace);
+            }
+        }
+
+        function handleDragEnd(e) {
+            if (draggedSlotIndex === null || !activeBlockData) return;
+
+            const fingerX = e.clientX;
+            const fingerY = e.clientY - 60;
+            const gridPos = getGridCoordinatesFromPixel(fingerX, fingerY);
+
+            let placedSuccessfully = false;
+
+            if (gridPos) {
+                if (canPlaceBlock(activeBlockData.matrix, gridPos.row, gridPos.col)) {
+                    placeBlock(activeBlockData.matrix, activeBlockData.color, gridPos.row, gridPos.col);
+                    trayBlocks[draggedSlotIndex] = null;
+                    placedSuccessfully = true;
+                    sound.playPlace();
+                }
+            }
+
+            // Reset UI State
+            dragGhost.style.display = 'none';
+            clearHighlights();
+
+            const slots = trayContainer.querySelectorAll('.tray-slot');
+            if (slots[draggedSlotIndex]) {
+                slots[draggedSlotIndex].children[0].style.opacity = '1';
+            }
+
+            if (placedSuccessfully) {
+                renderBoard();
+                renderTray();
+                checkAndClearLines();
+
+                // If all 3 tray blocks placed, spawn new set
+                if (trayBlocks.every(b => b === null)) {
+                    spawnTrayBlocks();
+                } else {
+                    checkGameOverCondition();
+                }
+
+                saveProgress();
+            }
+
+            draggedSlotIndex = null;
+            activeBlockData = null;
+        }
+
+        // Calculate grid row & col from pixel position
+        function getGridCoordinatesFromPixel(x, y) {
+            const rect = boardEl.getBoundingClientRect();
+            if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+                return null;
+            }
+
+            const cellWidth = rect.width / BOARD_SIZE;
+            const cellHeight = rect.height / BOARD_SIZE;
+
+            const col = Math.floor((x - rect.left) / cellWidth);
+            const row = Math.floor((y - rect.top) / cellHeight);
+
+            if (row >= 0 && row < BOARD_SIZE && col >= 0 && col < BOARD_SIZE) {
+                return { row, col };
+            }
+            return null;
+        }
+
+        function canPlaceBlock(matrix, startRow, startCol) {
+            const rows = matrix.length;
+            const cols = matrix[0].length;
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    if (matrix[r][c] === 1) {
+                        const targetR = startRow + r;
+                        const targetC = startCol + c;
+
+                        // Check bounds
+                        if (targetR < 0 || targetR >= BOARD_SIZE || targetC < 0 || targetC >= BOARD_SIZE) {
+                            return false;
+                        }
+
+                        // Check collision with filled board cells
+                        if (boardState[targetR][targetC] !== null) {
+                            return false;
+                        }
+                    }
+                }
+            }
+            return true;
+        }
+
+        function highlightCells(matrix, startRow, startCol, isValid) {
+            for (let r = 0; r < matrix.length; r++) {
+                for (let c = 0; c < matrix[0].length; c++) {
+                    if (matrix[r][c] === 1) {
+                        const targetR = startRow + r;
+                        const targetC = startCol + c;
+                        if (targetR >= 0 && targetR < BOARD_SIZE && targetC >= 0 && targetC < BOARD_SIZE) {
+                            const index = targetR * BOARD_SIZE + targetC;
+                            const cell = boardEl.children[index];
+                            if (cell) {
+                                cell.classList.add(isValid ? 'highlight' : 'invalid-highlight');
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        function clearHighlights() {
+            Array.from(boardEl.children).forEach(cell => {
+                cell.classList.remove('highlight', 'invalid-highlight');
+            });
+        }
+
+        function placeBlock(matrix, colorClass, startRow, startCol) {
+            let placedCount = 0;
+            for (let r = 0; r < matrix.length; r++) {
+                for (let c = 0; c < matrix[0].length; c++) {
+                    if (matrix[r][c] === 1) {
+                        boardState[startRow + r][startCol + c] = colorClass;
+                        placedCount++;
+                    }
+                }
+            }
+            score += placedCount * 10;
+            if (score > bestScore) bestScore = score;
+            updateHUD();
+        }
+
+        /* ==================== LINE CLEARING & SCORING ==================== */
+        function checkAndClearLines() {
+            const rowsToClear = [];
+            const colsToClear = [];
+
+            // Check full rows
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                if (boardState[r].every(cell => cell !== null)) {
+                    rowsToClear.push(r);
+                }
+            }
+
+            // Check full columns
+            for (let c = 0; c < BOARD_SIZE; c++) {
+                let full = true;
+                for (let r = 0; r < BOARD_SIZE; r++) {
+                    if (boardState[r][c] === null) {
+                        full = false;
+                        break;
+                    }
+                }
+                if (full) colsToClear.push(c);
+            }
+
+            const totalClears = rowsToClear.length + colsToClear.length;
+
+            if (totalClears > 0) {
+                sound.playClear();
+
+                // Calculate combo bonus scores
+                const clearScore = (rowsToClear.length * 100) + (colsToClear.length * 100) + (totalClears * 50);
+                score += clearScore;
+                coins += totalClears * 2;
+                if (score > bestScore) bestScore = score;
+
+                // Trigger animations and particles for cleared cells
+                const clearedCellsPositions = [];
+
+                rowsToClear.forEach(r => {
+                    for (let c = 0; c < BOARD_SIZE; c++) {
+                        boardState[r][c] = null;
+                        clearedCellsPositions.push({ r, c });
+                    }
+                });
+
+                colsToClear.forEach(c => {
+                    for (let r = 0; r < BOARD_SIZE; r++) {
+                        boardState[r][c] = null;
+                        clearedCellsPositions.push({ r, c });
+                    }
+                });
+
+                // Spawn score animation popup
+                showScorePopup(`+${clearScore}`, boardEl);
+
+                // Spawn particle burst
+                clearedCellsPositions.forEach(pos => {
+                    const cell = boardEl.children[pos.r * BOARD_SIZE + pos.c];
+                    const rect = cell.getBoundingClientRect();
+                    spawnExplosionParticles(rect.left + rect.width / 2, rect.top + rect.height / 2);
+                });
+
+                setTimeout(() => {
+                    renderBoard();
+                    updateHUD();
+                    saveProgress();
+                }, 100);
+            }
+        }
+
+        function showScorePopup(text, container) {
+            const popup = document.createElement('div');
+            popup.className = 'score-popup text-3xl';
+            popup.textContent = text;
+            popup.style.left = '50%';
+            popup.style.top = '40%';
+            popup.style.transform = 'translate(-50%, -50%)';
+            container.appendChild(popup);
+
+            setTimeout(() => popup.remove(), 1000);
+        }
+
+        /* ==================== GAME OVER DETECTION ==================== */
+        function checkGameOverCondition() {
+            let canAnyMove = false;
+
+            for (let i = 0; i < trayBlocks.length; i++) {
+                const block = trayBlocks[i];
+                if (!block) continue;
+
+                // Check if this block fits anywhere on board
+                for (let r = 0; r < BOARD_SIZE; r++) {
+                    for (let c = 0; c < BOARD_SIZE; c++) {
+                        if (canPlaceBlock(block.matrix, r, c)) {
+                            canAnyMove = true;
+                            break;
+                        }
+                    }
+                    if (canAnyMove) break;
+                }
+                if (canAnyMove) break;
+            }
+
+            if (!canAnyMove && trayBlocks.some(b => b !== null)) {
+                sound.playGameOver();
+                document.getElementById('go-score').textContent = score;
+                document.getElementById('go-best').textContent = bestScore;
+                gameoverModal.classList.remove('hidden');
+            }
+        }
+
+        function resetGame() {
+            boardState = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
+            score = 0;
+            updateHUD();
+            renderBoard();
+            spawnTrayBlocks();
+            saveProgress();
+        }
+
+        /* ==================== AD SIMULATION SYSTEM ==================== */
+        function showAdModal(title, onCompleteCallback) {
+            const adTitleEl = document.getElementById('ad-title');
+            const adTimerEl = document.getElementById('ad-timer');
+            const adProgressEl = document.getElementById('ad-progress');
+            const skipBtn = document.getElementById('btn-skip-ad');
+
+            adTitleEl.textContent = title;
+            adModal.classList.remove('hidden');
+
+            let timeLeft = 3;
+            adTimerEl.textContent = timeLeft;
+            adProgressEl.style.width = '0%';
+
+            setTimeout(() => { adProgressEl.style.width = '100%'; }, 50);
+
+            const timerInterval = setInterval(() => {
+                timeLeft--;
+                adTimerEl.textContent = timeLeft;
+
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    skipBtn.disabled = false;
+                    skipBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    skipBtn.classList.add('text-yellow-400', 'font-bold');
+                    skipBtn.textContent = 'Claim Reward & Close';
+                }
+            }, 1000);
+
+            skipBtn.onclick = () => {
+                adModal.classList.add('hidden');
+                skipBtn.disabled = true;
+                skipBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                skipBtn.textContent = 'Skip Ad';
+                if (onCompleteCallback) onCompleteCallback();
+            };
+        }
+
+        /* ==================== CANVAS PARTICLE FX ENGINE ==================== */
+        let particles = [];
+        let pCanvas, pCtx;
+
+        function initParticleCanvas() {
+            pCanvas = document.getElementById('particle-canvas');
+            pCtx = pCanvas.getContext('2d');
+            resizeParticleCanvas();
+            window.addEventListener('resize', resizeParticleCanvas);
+            requestAnimationFrame(updateParticles);
+        }
+
+        function resizeParticleCanvas() {
+            pCanvas.width = window.innerWidth;
+            pCanvas.height = window.innerHeight;
+        }
+
+        function spawnExplosionParticles(x, y) {
+            const colors = ['#fbc02d', '#4caf50', '#2196f3', '#ab47bc', '#ff7043'];
+            for (let i = 0; i < 12; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 2 + Math.random() * 5;
+                particles.push({
+                    x, y,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    size: 3 + Math.random() * 4,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    alpha: 1,
+                    life: 0.03 + Math.random() * 0.03
+                });
+            }
+        }
+
+        function updateParticles() {
+            pCtx.clearRect(0, 0, pCanvas.width, pCanvas.height);
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.alpha -= p.life;
+
+                if (p.alpha <= 0) {
+                    particles.splice(i, 1);
+                    continue;
+                }
+
+                pCtx.globalAlpha = p.alpha;
+                pCtx.fillStyle = p.color;
+                pCtx.beginPath();
+                pCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                pCtx.fill();
+            }
+
+            requestAnimationFrame(updateParticles);
+        }
+
+        // Initialize game on window load
+        window.onload = initApp;
+    </script>
+</body>
+</html>
